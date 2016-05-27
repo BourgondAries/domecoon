@@ -1,2 +1,2 @@
 all:
-	cargo test
+	cargo test -- --nocapture
