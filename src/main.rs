@@ -4,136 +4,127 @@
 
 extern crate acon;
 
-use std::cell::RefCell;
-use std::collections::BTreeMap;
-use std::rc::Rc;
-
-type Rcc<T> = Rc<RefCell<T>>;
-
 #[derive(Debug)]
-struct Genealogy {
-	identifiers: BTreeMap<String, Individual>,
+struct Individual<T> {
+	children: Vec<usize>,
+	individual: T,
+	parents: Vec<usize>,
 }
 
-impl Genealogy {
-	fn new() -> Genealogy {
+impl<T> Individual<T> {
+	fn new(individual: T) -> Individual<T> {
+		Individual {
+			children: vec![],
+			individual: individual,
+			parents: vec![],
+		}
+	}
+}
+
+#[derive(Debug)]
+struct Genealogy<T> {
+	genealogy: Vec<Individual<T>>,
+}
+
+impl<T> Genealogy<T> where T: std::fmt::Debug {
+	fn new() -> Genealogy<T> {
 		Genealogy {
-			identifiers: BTreeMap::new(),
+			genealogy: vec![],
 		}
 	}
 
-	/// Create a new individual with a unique identifier
-	fn create_individual(&mut self, identifier: &str) -> Result<Individual, GeneError> {
-		if self.identifiers.contains_key(identifier) {
-			return Err(GeneError::IdentifierInUse);
+	fn exists(&self, id: usize) -> bool {
+		self.genealogy.len() < id
+	}
+
+	fn add_parent(&mut self, id: usize, pid: Option<usize>) {
+		if let Some(pid) = pid {
+			match self.genealogy.get_mut(pid) {
+				Some(ref mut individual) => individual.children.push(id),
+				None => println!("Could not add child, unknown parent id"),
+			}
+			match self.genealogy.get_mut(id) {
+				Some(ref mut individual) => individual.parents.push(pid),
+				None => println!("Could not add parent, unknown child id"),
+			}
 		}
-		let individual = Individual::new(identifier);
-		self.identifiers.insert(identifier.to_string(), individual.clone());
-		Ok(individual)
 	}
 
-	fn contains_individual(&self, identifier: &str) -> bool {
-		self.identifiers.contains_key(identifier)
+	fn add(&mut self, identifier: T, father: Option<usize>, mother: Option<usize>) {
+		let id = self.genealogy.len();
+		self.genealogy.push(Individual::new(identifier));
+		self.add_parent(id, father);
+		self.add_parent(id, mother);
 	}
 
-	/// Retrieve the individual using the unique identifier
-	fn get_individual(&self, identifier: &str) -> Option<&Individual> {
-		self.identifiers.get(identifier)
+	fn tail(&self, amount: usize) -> Option<&[Individual<T>]> {
+		if amount >= self.genealogy.len() {
+			None
+		} else {
+			Some(&self.genealogy[self.genealogy.len() - amount..])
+		}
 	}
 
-	/// Remove the individual entirely using the unique identifier
-	/// Note that removal is not possible if the individual has parents or children
-	fn remove_individual(&mut self, identifier: &str) -> Option<Individual> {
-
-		self.identifiers.remove(identifier)
+	fn print_nice(&self) {
+		let mut counter = 0;
+		while let Some(i) = self.genealogy.get(counter) {
+			println!("id: {}, children: {:?}, parents: {:?}, individual: {:?}",
+				counter, i.children, i.parents, i.individual);
+			counter += 1;
+		}
 	}
 
-	fn set_child(&self, parent: &str, child: &str) -> Result<(), GeneError> {
-		match self.get_individual(parent) {
-			Some(parent) => {
-				let mut parent = parent.clone();
-				match self.get_individual(child) {
-					Some(child) => {
-						let mut child = child.clone();
-						parent.add_child(&mut child)
+	/// Get all ancestors to this animal within a specified range
+	/// The range is there to avoid tracking a large tree
+	/// The coefficient of inbreeding is extremely small sufficiently far
+	/// away and can be ignored
+	fn get_ancestors(&self, id: usize, max_depth: usize) -> Vec<usize> {
+		let mut current = 0;
+		let mut ancestors = vec![];
+		let mut temp_ancestors = vec![id];
+		let mut temp_ancestors_build = vec![];
+		while current < max_depth {
+			for ancestor in &temp_ancestors {
+				match self.genealogy.get(*ancestor).map(|id| &id.parents) {
+					Some(parents) => {
+						for i in parents {
+							ancestors.push(*i);
+							temp_ancestors_build.push(*i);
+						}
 					}
-					None => Err(GeneError::NoSuchChild),
+					None => {}
 				}
 			}
-			None => Err(GeneError::NoSuchParent),
+			temp_ancestors = temp_ancestors_build;
+			temp_ancestors_build = vec![];
+			current += 1;
 		}
-	}
-}
-
-#[derive(Debug)]
-enum GeneError {
-	IdentifierInUse,
-	IsAlreadyAChild,
-	NoSuchChild,
-	NoSuchParent,
-}
-
-#[derive(Clone, Debug)]
-struct IndividualData {
-	children: Vec<Individual>,
-	identifier: String,
-	parents: Vec<Individual>,
-}
-
-#[derive(Clone, Debug)]
-struct Individual(Rcc<IndividualData>);
-
-impl Individual {
-	fn new(identifier: &str) -> Individual {
-		Individual (
-			Rc::new(RefCell::new(
-				IndividualData {
-					children: vec![],
-					identifier: identifier.to_string(),
-					parents: vec![],
-				}
-			))
-		)
-	}
-
-	/// Check if 'parent' is an ancestor of this individual
-	fn is_ancestor(&self, child: &Individual) -> bool {
-		let inner = self.0.borrow_mut();
-		let child = child.0.borrow();
-		let name = child.identifier.as_ref();
-		for individual in inner.children.iter() {
-			let temp = individual.0.borrow();
-			if temp.identifier == name {
-				return true;
-			}
-		}
-		false
-	}
-
-	fn add_child(&mut self, child: &mut Individual) -> Result<(), GeneError> {
-		if self.is_ancestor(child) {
-			return Err(GeneError::IsAlreadyAChild);
-		}
-		let mut inner = self.0.borrow_mut();
-		inner.children.push(child.clone());
-		let mut child = child.0.borrow_mut();
-		child.parents.push(self.clone());
-		Ok(())
+		ancestors.sort();
+		ancestors
 	}
 }
 
 #[test]
 fn main() {
 	let mut tree = Genealogy::new();
-	tree.create_individual("Parent").unwrap();
-	tree.create_individual("John").unwrap();
-	tree.create_individual("Jane").unwrap();
 
-	tree.set_child("Parent", "John").unwrap();
-	tree.set_child("Parent", "Jane").unwrap();
+	tree.add("Coony", None, None);
+	tree.add("Washy", None, None);
+	tree.add("Judy", Some(0), Some(1));
+	tree.add("Jamey", Some(0), Some(1));
+	tree.add("Billy", Some(2), Some(3));
+	tree.add("Jilly", Some(4), Some(0));
+
+	tree.print_nice();
+	println!("{:?}", tree.get_ancestors(2, 8));
+	println!("{:?}", tree.get_ancestors(4, 8));
+	println!("{:?}", tree.get_ancestors(5, 8));
 }
 
-#[test]
-fn test() {
-	assert!(true);
+#[cfg(test)]
+mod tests {
+	#[test]
+	fn test() {
+		assert!(true);
+	}
 }
