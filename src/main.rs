@@ -3,6 +3,7 @@
 #![cfg_attr(feature="clippy", allow(items_after_statements))]
 
 extern crate acon;
+extern crate array_tool;
 
 #[derive(Debug)]
 struct Individual<T> {
@@ -116,9 +117,13 @@ fn main() {
 	tree.add("Jilly", Some(4), Some(0));
 
 	tree.print_nice();
-	println!("{:?}", tree.get_ancestors(2, 8));
 	println!("{:?}", tree.get_ancestors(4, 8));
 	println!("{:?}", tree.get_ancestors(5, 8));
+
+	use array_tool::vec::Intersect;
+	let ancestors = tree.get_ancestors(4, 8);
+	let intersect = ancestors.intersect(tree.get_ancestors(5, 8));
+	println!("{:?}", intersect);
 }
 
 #[cfg(test)]
