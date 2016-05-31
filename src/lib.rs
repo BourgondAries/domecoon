@@ -105,31 +105,28 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 	}
 }
 
-#[test]
-fn main() {
-	let mut tree = Genealogy::new();
-
-	tree.add("Coony", None, None);
-	tree.add("Washy", None, None);
-	tree.add("Judy", Some(0), Some(1));
-	tree.add("Jamey", Some(0), Some(1));
-	tree.add("Billy", Some(2), Some(3));
-	tree.add("Jilly", Some(4), Some(0));
-
-	tree.print_nice();
-	println!("{:?}", tree.get_ancestors(4, 8));
-	println!("{:?}", tree.get_ancestors(5, 8));
-
-	use array_tool::vec::Intersect;
-	let ancestors = tree.get_ancestors(4, 8);
-	let intersect = ancestors.intersect(tree.get_ancestors(5, 8));
-	println!("{:?}", intersect);
-}
-
 #[cfg(test)]
 mod tests {
+	use super::Genealogy;
 	#[test]
-	fn test() {
-		assert!(true);
+	fn build_simple() {
+		let mut tree = Genealogy::new();
+
+		tree.add("Coony", None, None);
+		tree.add("Washy", None, None);
+		tree.add("Judy", Some(0), Some(1));
+		tree.add("Jamey", Some(0), Some(1));
+		tree.add("Billy", Some(2), Some(3));
+		tree.add("Jilly", Some(4), Some(0));
+
+		tree.print_nice();
+		println!("{:?}", tree.get_ancestors(4, 8));
+		println!("{:?}", tree.get_ancestors(5, 8));
+
+		use array_tool::vec::Intersect;
+		let ancestors = tree.get_ancestors(4, 8);
+		let intersect = ancestors.intersect(tree.get_ancestors(5, 8));
+		println!("{:?}", intersect);
+
 	}
 }
