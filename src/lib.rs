@@ -1,6 +1,7 @@
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
 #![cfg_attr(feature="clippy", allow(items_after_statements))]
+#![allow(dead_code)]
 
 extern crate acon;
 extern crate array_tool;
@@ -10,6 +11,10 @@ struct Individual<T> {
 	children: Vec<usize>,
 	individual: T,
 	parents: Vec<usize>,
+	fertile: bool,
+	male: Option<bool>,
+	score: Option<usize>,
+	coefficient_of_inbreeding: Option<f64>,
 }
 
 impl<T> Individual<T> {
@@ -18,6 +23,10 @@ impl<T> Individual<T> {
 			children: vec![],
 			individual: individual,
 			parents: vec![],
+			fertile: true,
+			male: None,
+			score: None,
+			coefficient_of_inbreeding: None,
 		}
 	}
 }
@@ -27,11 +36,102 @@ struct Genealogy<T> {
 	genealogy: Vec<Individual<T>>,
 }
 
+impl Genealogy<String> {
+	fn sample_tree() -> Genealogy<String> {
+		let mut tree = Genealogy::<String>::new();
+		// Root ancestors
+		tree.add("Ferdinand of Aragon".to_string(), None, None);
+		tree.add("Elizabeth of Castile".to_string(), None, None);
+		tree.add("Maximilian I".to_string(), None, None);
+		tree.add("Mary of Burgundy".to_string(), None, None);
+		tree.add("Manuel I".to_string(), None, None);
+
+		// 5
+		tree.add("Mary of Aragon".to_string(), Some(0), Some(1));
+		tree.add("Joanna I".to_string(), Some(0), Some(1));
+		tree.add("Philip I".to_string(), Some(2), Some(3));
+
+		// 8
+		tree.add("John III".to_string(), Some(4), Some(5));
+		tree.add("Isabella of Portugal".to_string(), Some(4), Some(5));
+		tree.add("Catherine".to_string(), Some(6), Some(7));
+		tree.add("Charles I".to_string(), Some(6), Some(7));
+		tree.add("Ferdinand I".to_string(), Some(6), Some(7));
+		tree.add("Anna of Hungary".to_string(), None, None);
+
+		// 14
+		tree.add("Mary of Portugal".to_string(), Some(8), Some(10));
+		tree.add("Philip II".to_string(), Some(9), Some(11));
+		tree.add("Maria".to_string(), Some(9), Some(11));
+		tree.add("Maximilian II".to_string(), Some(12), Some(13));
+		tree.add("Archduke Charles II".to_string(), Some(12), Some(13));
+		tree.add("Anna".to_string(), Some(12), Some(13));
+
+		// 20
+		tree.add("Anna of Austria".to_string(), Some(16), Some(17));
+		tree.add("Mary".to_string(), Some(19), None);
+
+		// 22
+		tree.add("Charles".to_string(), Some(14), Some(15));
+		tree.add("Philip III".to_string(), Some(15), Some(20));
+		tree.add("Margaret of Austria".to_string(), Some(18), Some(21));
+		tree.add("Ferdinand II".to_string(), Some(18), Some(21));
+
+		// 26
+		tree.add("Philip IV".to_string(), Some(23), Some(24));
+		tree.add("Maria Anna of Austria".to_string(), Some(23), Some(24));
+		tree.add("Ferdinand III".to_string(), Some(23), None);
+
+		// 29
+		tree.add("Mariana of Austria".to_string(), Some(27), Some(28));
+
+		// 30
+		tree.add("Charles II".to_string(), Some(26), Some(29));
+
+		tree
+	}
+
+
+}
+
 impl<T> Genealogy<T> where T: std::fmt::Debug {
 	fn new() -> Genealogy<T> {
 		Genealogy {
 			genealogy: vec![],
 		}
+	}
+
+	fn dijkstra(&self, from: usize, to: usize) -> Option<Vec<usize>> {
+		use std::collections::{BTreeMap, BTreeSet};
+
+		let mut seen: BTreeSet<usize> = BTreeSet::new();
+		let mut backtrace: BTreeMap<usize, usize> = BTreeMap::new();
+		let mut active: Vec<usize> = vec![from];
+		let mut stage: Vec<usize> = vec![];
+
+		'looper: while active.is_empty() == false {
+			for key in active.iter() {
+				let individual = match self.genealogy.get(*key) {
+					Some(individual) => individual,
+					None => return None,
+				};
+				stage.extend(individual.children.iter()
+																				.chain(individual.parents.iter())
+																				.filter(|x| !seen.contains(x))
+																				.inspect(|x| { backtrace.insert(**x, *key); }));
+				seen.extend(stage.iter());
+			}
+			active = stage;
+			stage = vec![];
+			if seen.contains(&to) {
+				break 'looper;
+			}
+		}
+
+		let path = vec![to];
+		backtrace.get(path.last().unwrap());
+		println!("{:?}", backtrace);
+		Some(stage)
 	}
 
 	fn exists(&self, id: usize) -> bool {
@@ -119,14 +219,23 @@ mod tests {
 		tree.add("Billy", Some(2), Some(3));
 		tree.add("Jilly", Some(4), Some(0));
 
-		tree.print_nice();
-		println!("{:?}", tree.get_ancestors(4, 8));
-		println!("{:?}", tree.get_ancestors(5, 8));
+		// tree.print_nice();
+		// println!("{:?}", tree.get_ancestors(4, 8));
+		// println!("{:?}", tree.get_ancestors(5, 8));
 
 		use array_tool::vec::Intersect;
 		let ancestors = tree.get_ancestors(4, 8);
 		let intersect = ancestors.intersect(tree.get_ancestors(5, 8));
-		println!("{:?}", intersect);
+		// println!("{:?}", intersect);
 
+	}
+
+	#[test]
+	fn dijkstra() {
+		let tree: Genealogy<String> = Genealogy::sample_tree();
+
+		tree.print_nice();
+		let path = tree.dijkstra(30, 24);
+		println!("{:?}", path);
 	}
 }
