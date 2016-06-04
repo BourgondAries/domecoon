@@ -6,13 +6,23 @@
 extern crate acon;
 extern crate array_tool;
 
+use array_tool::vec::Intersect;
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Clone, Copy, Debug)]
+enum Sex {
+	Female,
+	Hermaphrodite,
+	Male,
+}
+
 #[derive(Debug)]
 struct Individual<T> {
 	children: Vec<usize>,
 	individual: T,
 	parents: Vec<usize>,
 	fertile: bool,
-	male: Option<bool>,
+	sex: Option<Sex>,
 	score: Option<usize>,
 	coefficient_of_inbreeding: Option<f64>,
 }
@@ -24,7 +34,7 @@ impl<T> Individual<T> {
 			individual: individual,
 			parents: vec![],
 			fertile: true,
-			male: None,
+			sex: None,
 			score: None,
 			coefficient_of_inbreeding: None,
 		}
@@ -39,6 +49,7 @@ struct Genealogy<T> {
 impl Genealogy<String> {
 	fn sample_tree() -> Genealogy<String> {
 		let mut tree = Genealogy::<String>::new();
+
 		// Root ancestors
 		tree.add("Ferdinand of Aragon".to_string(), None, None);
 		tree.add("Elizabeth of Castile".to_string(), None, None);
@@ -64,7 +75,7 @@ impl Genealogy<String> {
 		tree.add("Philip II".to_string(), Some(9), Some(11));
 		tree.add("Maria".to_string(), Some(9), Some(11));
 		tree.add("Maximilian II".to_string(), Some(12), Some(13));
-		tree.add("Archduke Charles II".to_string(), Some(12), Some(13));
+		tree.add("Archduke Charles II of Austria".to_string(), Some(12), Some(13));
 		tree.add("Anna".to_string(), Some(12), Some(13));
 
 		// 20
@@ -72,7 +83,7 @@ impl Genealogy<String> {
 		tree.add("Mary".to_string(), Some(19), None);
 
 		// 22
-		tree.add("Charles".to_string(), Some(14), Some(15));
+		tree.add("Charles (Don Carlos)".to_string(), Some(14), Some(15));
 		tree.add("Philip III".to_string(), Some(15), Some(20));
 		tree.add("Margaret of Austria".to_string(), Some(18), Some(21));
 		tree.add("Ferdinand II".to_string(), Some(18), Some(21));
@@ -80,7 +91,7 @@ impl Genealogy<String> {
 		// 26
 		tree.add("Philip IV".to_string(), Some(23), Some(24));
 		tree.add("Maria Anna of Austria".to_string(), Some(23), Some(24));
-		tree.add("Ferdinand III".to_string(), Some(23), None);
+		tree.add("Ferdinand III".to_string(), Some(25), None);
 
 		// 29
 		tree.add("Mariana of Austria".to_string(), Some(27), Some(28));
@@ -91,7 +102,48 @@ impl Genealogy<String> {
 		tree
 	}
 
+	fn first_cousins() -> Genealogy<String> {
+		let mut tree = Genealogy::<String>::new();
 
+		// Root ancestors
+		tree.add("A".to_string(), None, None);
+		tree.add("B".to_string(), None, None);
+
+		// 2
+		tree.add("D".to_string(), Some(0), Some(1));
+		tree.add("E".to_string(), Some(0), Some(1));
+
+		// 4
+		tree.add("G".to_string(), Some(2), None);
+		tree.add("H".to_string(), Some(3), None);
+
+		tree
+	}
+
+	fn second_cousins() -> Genealogy<String> {
+		let mut tree = Genealogy::<String>::new();
+
+		// Root ancestors
+		tree.add("A".to_string(), None, None);
+		tree.add("B".to_string(), None, None);
+
+		// 2
+		tree.add("D".to_string(), Some(0), Some(1));
+		tree.add("E".to_string(), Some(0), Some(1));
+
+		// 4
+		tree.add("H".to_string(), Some(2), None);
+		tree.add("I".to_string(), Some(3), None);
+
+		// 6
+		tree.add("K".to_string(), Some(4), None);
+		tree.add("L".to_string(), Some(5), None);
+
+		// 8
+		tree.add("M".to_string(), Some(6), Some(7));
+
+		tree
+	}
 }
 
 impl<T> Genealogy<T> where T: std::fmt::Debug {
@@ -101,9 +153,135 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 		}
 	}
 
-	fn dijkstra(&self, from: usize, to: usize) -> Option<Vec<usize>> {
-		use std::collections::{BTreeMap, BTreeSet};
+	fn find_relationship(&self, from: usize, to: usize) -> Option<f64> {
+		let ancestors_from = self.get_ancestors(from, 8);
+		let ancestors_to = self.get_ancestors(to, 8);
+		println!("Ancestors from: {:?}", ancestors_from);
+		println!("Ancestors : {:?}", ancestors_from);
+		let intersect = ancestors_from.intersect(ancestors_to);
 
+		println!("Intersect: {:?}", intersect);
+
+		let mut relationship = 0.0;
+
+		for ancestor in intersect {
+			match self.path_via_ancestor(from, ancestor, to) {
+				Some((path_to, path_from)) => {
+					println!("Path to: {:?}", path_to);
+					println!("Path from: {:?}", path_from);
+					relationship += 0.5f64.powi(
+						(path_to.len()+path_from.len()-2) as i32);
+
+				}
+				None => {}
+			}
+		}
+		Some(relationship)
+	}
+
+	fn path_via_ancestor(&self, from: usize, via: usize, to: usize) -> Option<(Vec<usize>, Vec<usize>)> {
+		if let Some((path_from, _)) = self.dijkstra_via_parents(from, via, BTreeSet::new()) {
+			let mut seen = BTreeSet::new();
+			seen.extend(path_from.iter());
+			if let Some((path_to, _)) = self.dijkstra_via_children(via, to, seen) {
+				Some((path_to, path_from))
+			} else {
+				None
+			}
+		} else {
+			None
+		}
+	}
+
+	fn dijkstra_via_parents(&self, from: usize, to: usize, mut seen: BTreeSet<usize>)
+	-> Option<(Vec<usize>, BTreeSet<usize>)> {
+		if from == to {
+			return Some((vec![], BTreeSet::new()));
+		}
+		let mut backtrace: BTreeMap<usize, usize> = BTreeMap::new();
+		let mut active: Vec<usize> = vec![from];
+		let mut stage: Vec<usize> = vec![];
+
+		'looper: while active.is_empty() == false {
+			for key in active.iter() {
+				let individual = match self.genealogy.get(*key) {
+					Some(individual) => individual,
+					None => return None,
+				};
+				stage.extend(individual.parents.iter()
+				                               .filter(|x| !seen.contains(x))
+				                               .inspect(|x| { backtrace.insert(**x, *key); }));
+				seen.extend(stage.iter());
+			}
+			active = stage;
+			stage = vec![];
+			if seen.contains(&to) {
+				break 'looper;
+			}
+		}
+
+		let mut path = vec![to];
+		loop {
+			let last_id = match path.last() {
+				Some(last) => *last,
+				None => return None,
+			};
+			let next = match backtrace.get(&last_id) {
+				Some(next) => next,
+				None => return None,
+			};
+			path.push(*next);
+			if *next == from {
+				break;
+			}
+		}
+		Some((path, seen))
+	}
+
+
+	fn dijkstra_via_children(&self, from: usize, to: usize, mut seen: BTreeSet<usize>)
+	-> Option<(Vec<usize>, BTreeSet<usize>)> {
+		let mut backtrace: BTreeMap<usize, usize> = BTreeMap::new();
+		let mut active: Vec<usize> = vec![from];
+		let mut stage: Vec<usize> = vec![];
+
+		'looper: while active.is_empty() == false {
+			for key in active.iter() {
+				let individual = match self.genealogy.get(*key) {
+					Some(individual) => individual,
+					None => return None,
+				};
+				stage.extend(individual.children.iter()
+				                                .filter(|x| !seen.contains(x))
+				                                .inspect(|x| { backtrace.insert(**x, *key); }));
+				seen.extend(stage.iter());
+			}
+			active = stage;
+			stage = vec![];
+			if seen.contains(&to) {
+				break 'looper;
+			}
+		}
+
+		let mut path = vec![to];
+		loop {
+			let last_id = match path.last() {
+				Some(last) => *last,
+				None => return None,
+			};
+			let next = match backtrace.get(&last_id) {
+				Some(next) => next,
+				None => return None,
+			};
+			path.push(*next);
+			if *next == from {
+				break;
+			}
+		}
+		Some((path, seen))
+	}
+
+	fn dijkstra(&self, from: usize, to: usize) -> Option<Vec<usize>> {
 		let mut seen: BTreeSet<usize> = BTreeSet::new();
 		let mut backtrace: BTreeMap<usize, usize> = BTreeMap::new();
 		let mut active: Vec<usize> = vec![from];
@@ -116,9 +294,9 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 					None => return None,
 				};
 				stage.extend(individual.children.iter()
-																				.chain(individual.parents.iter())
-																				.filter(|x| !seen.contains(x))
-																				.inspect(|x| { backtrace.insert(**x, *key); }));
+				                                .chain(individual.parents.iter())
+				                                .filter(|x| !seen.contains(x))
+				                                .inspect(|x| { backtrace.insert(**x, *key); }));
 				seen.extend(stage.iter());
 			}
 			active = stage;
@@ -164,11 +342,12 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 		}
 	}
 
-	fn add(&mut self, identifier: T, father: Option<usize>, mother: Option<usize>) {
+	fn add(&mut self, identifier: T, father: Option<usize>, mother: Option<usize>) -> usize {
 		let id = self.genealogy.len();
 		self.genealogy.push(Individual::new(identifier));
 		self.add_parent(id, father);
 		self.add_parent(id, mother);
+		id
 	}
 
 	fn tail(&self, amount: usize) -> Option<&[Individual<T>]> {
@@ -194,7 +373,7 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 	/// away and can be ignored
 	fn get_ancestors(&self, id: usize, max_depth: usize) -> Vec<usize> {
 		let mut current = 0;
-		let mut ancestors = vec![];
+		let mut ancestors = vec![id];
 		let mut temp_ancestors = vec![id];
 		let mut temp_ancestors_build = vec![];
 		while current < max_depth {
@@ -223,32 +402,45 @@ mod tests {
 	use super::Genealogy;
 	#[test]
 	fn build_simple() {
-		let mut tree = Genealogy::new();
-
-		tree.add("Coony", None, None);
-		tree.add("Washy", None, None);
-		tree.add("Judy", Some(0), Some(1));
-		tree.add("Jamey", Some(0), Some(1));
-		tree.add("Billy", Some(2), Some(3));
-		tree.add("Jilly", Some(4), Some(0));
-
-		// tree.print_nice();
-		// println!("{:?}", tree.get_ancestors(4, 8));
-		// println!("{:?}", tree.get_ancestors(5, 8));
-
-		use array_tool::vec::Intersect;
-		let ancestors = tree.get_ancestors(4, 8);
-		let intersect = ancestors.intersect(tree.get_ancestors(5, 8));
-		// println!("{:?}", intersect);
-
+		// let _: Genealogy<String> = Genealogy::new();
 	}
 
 	#[test]
 	fn dijkstra() {
-		let tree: Genealogy<String> = Genealogy::sample_tree();
+		// let tree: Genealogy<String> = Genealogy::sample_tree();
+		// let path = tree.dijkstra(22, 29);
+		// println!("{:?}", path);
+	}
 
-		tree.print_nice();
-		let path = tree.dijkstra(30, 0);
-		println!("{:?}", path);
+	#[test]
+	fn path_via() {
+		// let tree: Genealogy<String> = Genealogy::sample_tree();
+		// let path = tree.path_via_ancestor(26, 24, 29);
+		// println!("{:?}", path);
+	}
+
+	#[test]
+	fn coefficient_of_relationship() {
+		let tree = Genealogy::sample_tree();
+		println!("Path Via Ancestor: {:?}", tree.path_via_ancestor(26, 18, 29));
+		println!("Relationship coefficient: {:?}", tree.find_relationship(26, 29));
+	}
+
+	#[test]
+	fn second_cousins_m_a_relationship() {
+		let tree = Genealogy::second_cousins();
+		assert_eq!(Some(0.125), tree.find_relationship(0, 8));
+	}
+
+	#[test]
+	fn second_cousins_m_b_relationship() {
+		let tree = Genealogy::second_cousins();
+		assert_eq!(Some(0.125), tree.find_relationship(1, 8));
+	}
+
+	#[test]
+	fn first_cousins() {
+		let tree = Genealogy::first_cousins();
+		println!("First cousin: {:?}", tree.find_relationship(4, 5));
 	}
 }
