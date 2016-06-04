@@ -128,10 +128,23 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 			}
 		}
 
-		let path = vec![to];
-		backtrace.get(path.last().unwrap());
+		let mut path = vec![to];
+		loop {
+			let last_id = match path.last() {
+				Some(last) => *last,
+				None => return None,
+			};
+			let next = match backtrace.get(&last_id) {
+				Some(next) => next,
+				None => return None,
+			};
+			path.push(*next);
+			if *next == from {
+				break;
+			}
+		}
 		println!("{:?}", backtrace);
-		Some(stage)
+		Some(path)
 	}
 
 	fn exists(&self, id: usize) -> bool {
@@ -235,7 +248,7 @@ mod tests {
 		let tree: Genealogy<String> = Genealogy::sample_tree();
 
 		tree.print_nice();
-		let path = tree.dijkstra(30, 24);
+		let path = tree.dijkstra(30, 0);
 		println!("{:?}", path);
 	}
 }
