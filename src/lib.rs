@@ -235,21 +235,12 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 				ancestor,
 				id2
 			);
-			for i in paths_1.iter_mut() {
-				if i.is_empty() == false { i.pop(); }
-				if i.is_empty() == false { i.remove(0); }
-			}
-			for i in paths_2.iter_mut() {
-				if i.is_empty() == false { i.pop(); }
-				if i.is_empty() == false { i.remove(0); }
-			}
-			println!("paths_1: {:?}", paths_1);
-			println!("paths_2: {:?}", paths_2);
-			for path_1 in paths_1.iter() {
+			for path_1 in paths_1.iter_mut() {
+				path_1.pop();
 				for path_2 in paths_2.iter() {
-					if path_1.intersect(path_2.clone()).len() == 0 {
+					if path_1.intersect(path_2.clone()).is_empty() {
 						println!("Found compatible paths: {:?}, and {:?}", path_1, path_2);
-						coefficient += 0.5f64.powi(((path_1.len() + path_2.len()) + 2) as i32);
+						coefficient += 0.5f64.powi(((path_1.len() + path_2.len()) - 1) as i32);
 					}
 				}
 			}
@@ -362,30 +353,44 @@ mod tests {
 	}
 
 	#[test]
+	fn second_cousins_k_l_relationship() {
+		let tree = Genealogy::second_cousins();
+		let relationship = tree.compute_coefficient_of_relationship(6, 7);
+		assert_eq!(Some(0.03125), relationship);
+	}
+
+	#[test]
+	fn second_cousins_m_d_relationship() {
+		let tree = Genealogy::second_cousins();
+		let relationship = tree.compute_coefficient_of_relationship(2, 8);
+		assert_eq!(Some(0.1875), relationship);
+	}
+
+	#[test]
 	fn second_cousins_m_a_relationship() {
-		// let tree = Genealogy::second_cousins();
-		// assert_eq!(Some(0.125), tree.find_relationship(0, 8));
+		let tree = Genealogy::second_cousins();
+		let relationship = tree.compute_coefficient_of_relationship(0, 8);
+		assert_eq!(Some(0.125), relationship);
 	}
 
 	#[test]
 	fn second_cousins_m_b_relationship() {
 		let tree = Genealogy::second_cousins();
-		let x = tree.get_paths_from_ancestor_to_descendant(0, 8);
-		println!("{:?}", x);
-		// assert_eq!(Some(0.125), tree.find_relationship(1, 8));
+		let relationship = tree.compute_coefficient_of_relationship(1, 8);
+		assert_eq!(Some(0.125), relationship);
 	}
 
 	#[test]
 	fn first_cousins() {
 		let tree = Genealogy::first_cousins();
-		let x = tree.compute_coefficient_of_relationship(4, 5);
-		println!("Relationship: {:?}", x);
+		let relationship = tree.compute_coefficient_of_relationship(4, 5);
+		assert_eq!(Some(0.125), relationship);
 	}
 
 	#[test]
 	fn direct_relationship() {
 		let tree = Genealogy::direct_relationship();
-		let x = tree.compute_coefficient_of_relationship(0, 3);
-		 println!("Relationship: {:?}", x);
+		let relationship = tree.compute_coefficient_of_relationship(0, 4);
+		assert_eq!(Some(0.0625), relationship);
 	}
 }
