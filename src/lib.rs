@@ -219,6 +219,54 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 		}
 	}
 
+	/// Find all paths from an ancestors to a descendant.
+	///
+	/// An empty outer Vec means there are no paths
+	/// An inner vector is represented by
+	/// [descendant, middle, ..., ancestor]
+	/// A single [[value]] means that the ancestor needs
+	/// no intermediary steps. It is already the requested
+	/// descendant.
+	fn get_paths_from_ancestor_to_descendant(&self, ancestor: usize, descendant: usize) -> Vec<Vec<usize>> {
+		if ancestor == descendant {
+			return vec![vec![ancestor]];
+		}
+		let mut paths = self
+			.get_paths_from_ancestor_to_descendant_internal(
+				ancestor, descendant
+			);
+		for path in paths.iter_mut() {
+			path.push(ancestor);
+		}
+		paths
+	}
+
+	fn get_paths_from_ancestor_to_descendant_internal(&self, ancestor: usize, descendant: usize) -> Vec<Vec<usize>> {
+		// We use Depth-First Search to find each path
+		let mut returner = vec![];
+		if let Some(children) = self.genealogy
+		.get(ancestor)
+		.map(|id| &id.children) {
+			for child in children {
+				if *child == descendant {
+					returner.push(vec![*child]);
+				} else {
+					let mut prep = self.get_paths_from_ancestor_to_descendant_internal(
+						*child, descendant
+					);
+					for i in prep.iter_mut() {
+						i.push(*child);
+					}
+					for x in prep {
+						returner.push(x);
+					}
+				}
+			}
+		}
+		returner
+	}
+
+
 	/// Get all ancestors to this animal within a specified range
 	/// The range is there to avoid tracking a large tree
 	/// The coefficient of inbreeding is extremely small sufficiently far
@@ -232,10 +280,8 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 			for ancestor in &temp_ancestors {
 				match self.genealogy.get(*ancestor).map(|id| &id.parents) {
 					Some(parents) => {
-						for i in parents {
-							ancestors.push(*i);
-							temp_ancestors_build.push(*i);
-						}
+						ancestors.extend(parents.iter());
+						temp_ancestors_build.extend(parents.iter());
 					}
 					None => {}
 				}
@@ -243,6 +289,9 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 			temp_ancestors = temp_ancestors_build;
 			temp_ancestors_build = vec![];
 			current += 1;
+			if temp_ancestors.is_empty() {
+				break;
+			}
 		}
 		ancestors.sort();
 		ancestors
@@ -286,19 +335,29 @@ mod tests {
 
 	#[test]
 	fn second_cousins_m_b_relationship() {
-		// let tree = Genealogy::second_cousins();
+		let tree = Genealogy::second_cousins();
+		let x = tree.get_paths_from_ancestor_to_descendant(0, 8);
+		println!("{:?}", x);
 		// assert_eq!(Some(0.125), tree.find_relationship(1, 8));
 	}
 
 	#[test]
 	fn first_cousins() {
-		// let tree = Genealogy::first_cousins();
+		let tree = Genealogy::first_cousins();
+		let x = tree.get_paths_from_ancestor_to_descendant(0, 5);
+		println!("{:?}", x);
+		let x = tree.get_paths_from_ancestor_to_descendant(0, 1);
+		println!("{:?}", x);
 		// println!("First cousin: {:?}", tree.find_relationship(4, 5));
 	}
 
 	#[test]
 	fn direct_relationship() {
-		// let tree = Genealogy::direct_relationship();
+		let tree = Genealogy::direct_relationship();
+		let x = tree.get_paths_from_ancestor_to_descendant(0, 4);
+		println!("{:?}", x);
+		let x = tree.get_paths_from_ancestor_to_descendant(0, 0);
 		// assert_eq!(Some(0.0625), tree.find_relationship(0, 4));
+		println!("{:?}", x);
 	}
 }
