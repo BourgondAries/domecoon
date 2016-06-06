@@ -7,7 +7,6 @@ extern crate acon;
 extern crate array_tool;
 
 use array_tool::vec::Intersect;
-use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug)]
 enum Sex {
@@ -231,7 +230,7 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 				ancestor,
 				id1
 			);
-			let mut paths_2 = self.get_paths_from_ancestor_to_descendant(
+			let paths_2 = self.get_paths_from_ancestor_to_descendant(
 				ancestor,
 				id2
 			);
@@ -300,7 +299,6 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 	/// The coefficient of inbreeding is extremely small sufficiently far
 	/// away and can be ignored
 	fn get_ancestors(&self, id: usize) -> Vec<usize> {
-		let mut current = 0;
 		let mut ancestors = vec![id];
 		let mut temp_ancestors = vec![id];
 		let mut temp_ancestors_build = vec![];
@@ -316,7 +314,6 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 			}
 			temp_ancestors = temp_ancestors_build;
 			temp_ancestors_build = vec![];
-			current += 1;
 		}
 		ancestors.sort();
 		ancestors
@@ -326,31 +323,6 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 #[cfg(test)]
 mod tests {
 	use super::Genealogy;
-	#[test]
-	fn build_simple() {
-		// let _: Genealogy<String> = Genealogy::new();
-	}
-
-	#[test]
-	fn dijkstra() {
-		// let tree: Genealogy<String> = Genealogy::sample_tree();
-		// let path = tree.dijkstra(22, 29);
-		// println!("{:?}", path);
-	}
-
-	#[test]
-	fn path_via() {
-		// let tree: Genealogy<String> = Genealogy::sample_tree();
-		// let path = tree.path_via_ancestor(26, 24, 29);
-		// println!("{:?}", path);
-	}
-
-	#[test]
-	fn coefficient_of_relationship() {
-		// let tree = Genealogy::sample_tree();
-		// println!("Path Via Ancestor: {:?}", tree.path_via_ancestor(26, 18, 29));
-		// println!("Relationship coefficient: {:?}", tree.find_relationship(26, 29));
-	}
 
 	#[test]
 	fn second_cousins_k_l_relationship() {
