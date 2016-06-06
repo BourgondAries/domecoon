@@ -183,14 +183,16 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 
 	fn add_parent(&mut self, id: usize, pid: Option<usize>) {
 		if let Some(pid) = pid {
-			match self.genealogy.get_mut(pid) {
-				Some(ref mut individual) => individual.children.push(id),
-				None => println!("Could not add child, unknown parent id"),
-			}
-			match self.genealogy.get_mut(id) {
-				Some(ref mut individual) => individual.parents.push(pid),
-				None => println!("Could not add parent, unknown child id"),
-			}
+			self.genealogy
+				.get_mut(pid)
+				.map_or_else(
+					|| println!("Could not add child, unknown parent id"),
+					|individual| individual.children.push(id));
+			self.genealogy
+				.get_mut(id)
+				.map_or_else(
+					|| println!("Could not add parent, unknown child id"),
+					|individual| individual.parents.push(pid));
 		}
 	}
 
@@ -217,6 +219,25 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 				counter, i.children, i.parents, i.individual);
 			counter += 1;
 		}
+	}
+
+	fn compute_coefficient_of_relationship(&self, id1: usize, id2: usize) -> Option<f64> {
+		let ancestors1 = self.get_ancestors(id1);
+		let ancestors2 = self.get_ancestors(id2);
+		let common_ancestors = ancestors1.intersect(ancestors2);
+		let mut all_paths = vec![];
+		for ancestor in common_ancestors {
+			let paths_1 = self.get_paths_from_ancestor_to_descendant(
+				ancestor,
+				id1
+			);
+			let paths_2 = self.get_paths_from_ancestor_to_descendant(
+				ancestor,
+				id1
+			);
+			all_paths.push((paths_1, paths_2));
+		}
+		Some(0.30)
 	}
 
 	/// Find all paths from an ancestors to a descendant.
@@ -267,31 +288,28 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 	}
 
 
-	/// Get all ancestors to this animal within a specified range
+	/// Get all ancestors of this animal within a specified range
 	/// The range is there to avoid tracking a large tree
 	/// The coefficient of inbreeding is extremely small sufficiently far
 	/// away and can be ignored
-	fn get_ancestors(&self, id: usize, max_depth: usize) -> Vec<usize> {
+	fn get_ancestors(&self, id: usize) -> Vec<usize> {
 		let mut current = 0;
 		let mut ancestors = vec![id];
 		let mut temp_ancestors = vec![id];
 		let mut temp_ancestors_build = vec![];
-		while current < max_depth {
+		while temp_ancestors.is_empty() == false {
 			for ancestor in &temp_ancestors {
-				match self.genealogy.get(*ancestor).map(|id| &id.parents) {
-					Some(parents) => {
-						ancestors.extend(parents.iter());
-						temp_ancestors_build.extend(parents.iter());
-					}
-					None => {}
-				}
+				self.genealogy
+				.get(*ancestor)
+				.map(|id| &id.parents)
+				.map(|parents| {
+					ancestors.extend(parents.iter());
+					temp_ancestors_build.extend(parents.iter());
+				});
 			}
 			temp_ancestors = temp_ancestors_build;
 			temp_ancestors_build = vec![];
 			current += 1;
-			if temp_ancestors.is_empty() {
-				break;
-			}
 		}
 		ancestors.sort();
 		ancestors
@@ -348,6 +366,8 @@ mod tests {
 		println!("{:?}", x);
 		let x = tree.get_paths_from_ancestor_to_descendant(0, 1);
 		println!("{:?}", x);
+		let x = tree.get_ancestors(3);
+		println!("Ancestors: {:?}", x);
 		// println!("First cousin: {:?}", tree.find_relationship(4, 5));
 	}
 
@@ -359,5 +379,7 @@ mod tests {
 		let x = tree.get_paths_from_ancestor_to_descendant(0, 0);
 		// assert_eq!(Some(0.0625), tree.find_relationship(0, 4));
 		println!("{:?}", x);
+		let x = tree.get_ancestors(4);
+		println!("Ancestors: {:?}", x);
 	}
 }
