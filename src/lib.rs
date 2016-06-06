@@ -47,15 +47,6 @@ struct Genealogy<T> {
 	genealogy: Vec<Individual<T>>,
 }
 
-fn above_one_is_one(value: usize) -> usize {
-	if value > 1 {
-		1
-	} else {
-		0
-	}
-}
-
-
 impl Genealogy<String> {
 	fn sample_tree() -> Genealogy<String> {
 		let mut tree = Genealogy::<String>::new();
