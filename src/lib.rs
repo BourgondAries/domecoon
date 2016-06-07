@@ -135,6 +135,28 @@ impl Genealogy<String> {
 		tree
 	}
 
+	fn first_cousins_children() -> Genealogy<String> {
+		let mut tree = Genealogy::<String>::new();
+
+		// Root ancestors
+		tree.add("A".to_string(), None, None);
+		tree.add("B".to_string(), None, None);
+
+		// 2
+		tree.add("D".to_string(), Some(0), Some(1));
+		tree.add("E".to_string(), Some(0), Some(1));
+
+		// 4
+		tree.add("G".to_string(), Some(2), None);
+		tree.add("H".to_string(), Some(3), None);
+
+		// 6
+		tree.add("I".to_string(), Some(4), Some(5));
+		tree.add("J".to_string(), Some(4), Some(5));
+
+		tree
+	}
+
 	fn second_cousins() -> Genealogy<String> {
 		let mut tree = Genealogy::<String>::new();
 
@@ -374,6 +396,13 @@ mod tests {
 		let tree = Genealogy::first_cousins();
 		let relationship = tree.compute_coefficient_of_relationship(4, 5);
 		assert_eq!(Some(0.125), relationship);
+	}
+
+	#[test]
+	fn first_cousins_children() {
+		let tree = Genealogy::first_cousins_children();
+		let relationship = tree.compute_coefficient_of_relationship(6, 7);
+		assert_eq!(Some(0.5625), relationship);
 	}
 
 	#[test]
