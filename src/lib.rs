@@ -185,18 +185,25 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 		self.genealogy.len() < id
 	}
 
-	fn add_parent(&mut self, id: usize, pid: Option<usize>) {
+	fn add_parent(&mut self, id: usize, pid: Option<usize>) -> bool {
 		if let Some(pid) = pid {
-			self.genealogy
-				.get_mut(pid)
-				.map_or_else(
-					|| println!("Could not add child, unknown parent id"),
-					|individual| individual.children.push(id));
-			self.genealogy
-				.get_mut(id)
-				.map_or_else(
-					|| println!("Could not add parent, unknown child id"),
-					|individual| individual.parents.push(pid));
+			if self.is_descendant_of(pid, id) {
+				false
+			} else {
+				self.genealogy
+					.get_mut(pid)
+					.map_or_else(
+						|| println!("Could not add child, unknown parent id"),
+						|individual| individual.children.push(id));
+				self.genealogy
+					.get_mut(id)
+					.map_or_else(
+						|| println!("Could not add parent, unknown child id"),
+						|individual| individual.parents.push(pid));
+				true
+			}
+		} else {
+			true
 		}
 	}
 
@@ -226,9 +233,8 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 	}
 
 	fn is_descendant_of(&self, ancestor: usize, descendant: usize) -> bool {
-		if let Some(children) = self.genealogy.get(ancestor) {
-		}
-		false
+		self.get_paths_from_ancestor_to_descendant(ancestor, descendant)
+			.is_empty() == false
 	}
 
 	fn compute_coefficient_of_relationship(&self, id1: usize, id2: usize) -> Option<f64> {
@@ -382,5 +388,23 @@ mod tests {
 		let tree = Genealogy::direct_relationship();
 		let relationship = tree.compute_coefficient_of_relationship(2, 3);
 		assert_eq!(Some(0.5), relationship);
+	}
+
+	#[test]
+	fn is_ancestor() {
+		let tree = Genealogy::direct_relationship();
+		let descendant = tree.is_descendant_of(2, 3);
+		assert_eq!(true, descendant);
+		let descendant = tree.is_descendant_of(3, 2);
+		assert_eq!(false, descendant);
+	}
+
+	#[test]
+	fn is_ancestor_first_cousins() {
+		let tree = Genealogy::first_cousins();
+		let descendant = tree.is_descendant_of(0, 2);
+		assert_eq!(true, descendant);
+		let descendant = tree.is_descendant_of(4, 0);
+		assert_eq!(false, descendant);
 	}
 }
