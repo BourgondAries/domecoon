@@ -103,6 +103,20 @@ impl Genealogy<String> {
 		tree
 	}
 
+	fn siblings() -> Genealogy<String> {
+		let mut tree = Genealogy::<String>::new();
+
+		// Root ancestors
+		tree.add("A".to_string(), None, None);
+		tree.add("B".to_string(), None, None);
+
+		// Siblings
+		tree.add("C".to_string(), Some(0), Some(1));
+		tree.add("D".to_string(), Some(0), Some(1));
+
+		tree
+	}
+
 	fn first_cousins() -> Genealogy<String> {
 		let mut tree = Genealogy::<String>::new();
 
@@ -209,6 +223,12 @@ impl<T> Genealogy<T> where T: std::fmt::Debug {
 				counter, i.children, i.parents, i.individual);
 			counter += 1;
 		}
+	}
+
+	fn is_descendant_of(&self, ancestor: usize, descendant: usize) -> bool {
+		if let Some(children) = self.genealogy.get(ancestor) {
+		}
+		false
 	}
 
 	fn compute_coefficient_of_relationship(&self, id1: usize, id2: usize) -> Option<f64> {
@@ -355,5 +375,12 @@ mod tests {
 		let tree = Genealogy::direct_relationship();
 		let relationship = tree.compute_coefficient_of_relationship(0, 4);
 		assert_eq!(Some(0.0625), relationship);
+	}
+
+	#[test]
+	fn sibling_relationship() {
+		let tree = Genealogy::direct_relationship();
+		let relationship = tree.compute_coefficient_of_relationship(2, 3);
+		assert_eq!(Some(0.5), relationship);
 	}
 }
