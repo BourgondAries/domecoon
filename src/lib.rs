@@ -194,6 +194,31 @@ impl Genealogy<String> {
 
 		tree
 	}
+
+	fn double_relationship() -> Genealogy<String> {
+		let mut tree = Genealogy::<String>::new();
+
+		// Root ancestors
+		tree.add("A".to_string(), None, None);
+		tree.add("B".to_string(), None, None);
+		tree.add("C".to_string(), None, None);
+		tree.add("D".to_string(), None, None);
+		tree.add("E".to_string(), None, None);
+		tree.add("F".to_string(), None, None);
+
+		// 6
+		tree.add("G".to_string(), Some(0), Some(1));
+		tree.add("H".to_string(), Some(1), Some(2));
+		tree.add("I".to_string(), Some(3), Some(4));
+		tree.add("J".to_string(), Some(4), Some(5));
+
+		// 10
+		tree.add("K".to_string(), Some(6), Some(8));
+		tree.add("L".to_string(), Some(7), Some(9));
+
+		tree
+	}
+
 }
 
 impl<T> Genealogy<T> where T: std::fmt::Debug {
@@ -417,6 +442,13 @@ mod tests {
 		let tree = Genealogy::direct_relationship();
 		let relationship = tree.compute_coefficient_of_relationship(2, 3);
 		assert_eq!(Some(0.5), relationship);
+	}
+
+	#[test]
+	fn double_relationship() {
+		let tree = Genealogy::double_relationship();
+		let relationship = tree.compute_coefficient_of_relationship(10, 11);
+		assert_eq!(Some(0.125), relationship);
 	}
 
 	#[test]
