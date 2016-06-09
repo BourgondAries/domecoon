@@ -219,6 +219,19 @@ impl Genealogy<String> {
 		tree
 	}
 
+	fn diamond_relationship() -> Genealogy<String> {
+		let mut tree = Genealogy::<String>::new();
+
+		// Root ancestors
+		tree.add("A".to_string(), None, None);
+
+		tree.add("B".to_string(), Some(0), None);
+		tree.add("C".to_string(), Some(0), None);
+
+		tree.add("D".to_string(), Some(1), Some(2));
+
+		tree
+	}
 }
 
 impl<T> Genealogy<T> where T: std::fmt::Debug {
@@ -441,6 +454,13 @@ mod tests {
 	fn sibling_relationship() {
 		let tree = Genealogy::direct_relationship();
 		let relationship = tree.compute_coefficient_of_relationship(2, 3);
+		assert_eq!(Some(0.5), relationship);
+	}
+
+	#[test]
+	fn diamond_relationship() {
+		let tree = Genealogy::diamond_relationship();
+		let relationship = tree.compute_coefficient_of_relationship(0, 3);
 		assert_eq!(Some(0.5), relationship);
 	}
 
