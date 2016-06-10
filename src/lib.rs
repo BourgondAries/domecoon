@@ -472,6 +472,13 @@ mod tests {
 	}
 
 	#[test]
+	fn double_relationship_same() {
+		let tree = Genealogy::double_relationship();
+		let relationship = tree.compute_coefficient_of_relationship(11, 11);
+		assert_eq!(Some(1.0), relationship);
+	}
+
+	#[test]
 	fn is_ancestor() {
 		let tree = Genealogy::direct_relationship();
 		let descendant = tree.is_descendant_of(2, 3);
