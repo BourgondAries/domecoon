@@ -488,6 +488,15 @@ mod tests {
 	}
 
 	#[test]
+	fn is_ancestor_same() {
+		let tree = Genealogy::direct_relationship();
+		let descendant = tree.is_descendant_of(3, 3);
+		assert_eq!(true, descendant);
+		let descendant = tree.is_descendant_of(2, 2);
+		assert_eq!(true, descendant);
+	}
+
+	#[test]
 	fn is_ancestor_first_cousins() {
 		let tree = Genealogy::first_cousins();
 		let descendant = tree.is_descendant_of(0, 2);
