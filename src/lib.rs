@@ -406,6 +406,9 @@ mod tests {
 		let tree = Genealogy::second_cousins();
 		let relationship = tree.compute_coefficient_of_relationship(6, 7);
 		assert_eq!(Some(0.03125), relationship);
+		let tree = Genealogy::second_cousins();
+		let relationship = tree.compute_coefficient_of_relationship(7, 6);
+		assert_eq!(Some(0.03125), relationship);
 	}
 
 	#[test]
