@@ -465,6 +465,8 @@ mod tests {
 		let tree = Genealogy::diamond_relationship();
 		let relationship = tree.compute_coefficient_of_relationship(0, 3);
 		assert_eq!(Some(0.5), relationship);
+		let relationship = tree.compute_coefficient_of_relationship(3, 0);
+		assert_eq!(Some(0.5), relationship);
 	}
 
 	#[test]
