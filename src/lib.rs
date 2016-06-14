@@ -509,4 +509,24 @@ mod tests {
 		let descendant = tree.is_descendant_of(4, 0);
 		assert_eq!(false, descendant);
 	}
+
+	macro_rules! foo {
+		($input:ident, $($x:ident),*) => {
+			match $input {
+				$(
+					stringify!($x) => { println!(stringify!($x)); }
+				)*
+				_ => { println!("OOPS"); }
+			}
+		}
+	}
+
+	#[test]
+	fn test_loop() {
+		let x = "no";
+		foo![
+			x, bra, dude, ok
+		];
+		println!("{:?}", (0..180).map(|x| (x as f32 * 355.0/113.0/180.0).sin()).collect::<Vec<_>>());
+	}
 }
